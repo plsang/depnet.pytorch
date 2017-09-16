@@ -17,7 +17,7 @@ from model import EncoderImageFull
 from dataloader import get_data_loader
 
 logger = logging.getLogger(__name__)
-from utils import AverageMeter, AverageScore
+from utils import AverageMeter, AverageScore, str2bool
 
 def train(opt, model, criterion, optimizer, train_loader, epoch):
     # average meters to record the training statistics
@@ -109,19 +109,15 @@ def adjust_learning_rate(opt, optimizer, epoch):
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument('output_file', type=str, help='output model file')
-    parser.add_argument('--train_label_file', type=str, help='path to the h5file containing the preprocessed dataset')
-    parser.add_argument('--val_label_file', type=str, help='path to the h5file containing the preprocessed dataset')
-    parser.add_argument('--test_label_file', type=str, help='path to the h5file containing the preprocessed dataset')
 
-    parser.add_argument('--train_imageinfo_file', type=str, help='Gold captions in MSCOCO format to cal language metrics')
-    parser.add_argument('--val_imageinfo_file', type=str, help='Gold captions in MSCOCO format to cal language metrics')
-    parser.add_argument('--test_imageinfo_file', type=str, help='Gold captions in MSCOCO format to cal language metrics')
+    parser.add_argument('train_label', type=str, help='path to the h5file containing the labels')
+    parser.add_argument('val_label', type=str, help='path to the h5file containing the labels')
+    parser.add_argument('train_imageinfo', type=str, help='imageinfo contains image path')
+    parser.add_argument('val_imageinfo', type=str, help='imageinfo contains image path')
+    parser.add_argument('output', type=str, help='output model file')
     
     parser.add_argument('--train_image_dir', type=str, help='image dir')
     parser.add_argument('--val_image_dir', type=str, help='image dir')
-    parser.add_argument('--test_image_dir', type=str, help='image dir')
     
     # Optimization: General
     parser.add_argument('--max_patience', type=int, default=50, help='max number of epoch to run since the minima is detected -- early stopping')
@@ -132,6 +128,11 @@ if __name__ == '__main__':
     parser.add_argument('--val_step', type=int, default=1, help='val step, default=1 (every epoch)')
     
     # Model settings
+    parser.add_argument('--finetune', type=str2bool, default=False,
+                        help='Fine-tune the image encoder.')
+    parser.add_argument('--cnn_type', default='vgg19', choices=['vgg19', 'resnet152'],
+                        help="""The CNN used for image encoder
+                        (e.g. vgg19, resnet152)""")
     parser.add_argument('--num_workers', type=int, default=4, help='number of workers')
     parser.add_argument('--num_epochs', type=int, default=30, help='max number of epochs to run for (-1 = run forever)')
     parser.add_argument('--grad_clip', type=float, default=0.1, help='clip gradients at this value (note should be lower than usual 5 because we normalize grads by both batch and seq_length)')
@@ -146,9 +147,6 @@ if __name__ == '__main__':
     ## misc
     parser.add_argument('--seed', type=int, default=123, help='random number generator seed to use')
     
-    parser.add_argument('--test_checkpoint',  type=str, default='', help='path to the checkpoint needed to be tested')
-    parser.add_argument('--test_only', type=int, default=0, help='1: use the current model (located in current path) for testing')
-    
     opt = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, opt.loglevel.upper()),
@@ -162,39 +160,30 @@ if __name__ == '__main__':
     else:
         torch.manual_seed(opt.seed)
     
-    train_opt = {'label_file': opt.train_label_file, 
-        'batch_size': opt.batch_size,
-        'imageinfo_file': opt.train_imageinfo_file,
+    train_opt = {'label_file': opt.train_label, 
+        'imageinfo_file': opt.train_imageinfo,         
         'image_dir': opt.train_image_dir,
+        'batch_size': opt.batch_size,         
         'num_workers': opt.num_workers,
         'train': True
     }
     
-    val_opt = {'label_file': opt.val_label_file, 
-        'batch_size': opt.batch_size,
-        'imageinfo_file': opt.val_imageinfo_file,
+    val_opt = {'label_file': opt.val_label, 
+        'imageinfo_file': opt.val_imageinfo,
         'image_dir': opt.val_image_dir,
+        'batch_size': opt.batch_size,       
         'num_workers': opt.num_workers,       
-        'train': False
-    }
-    
-    test_opt = {'label_file': opt.test_label_file, 
-        'batch_size': opt.batch_size,
-        'imageinfo_file': opt.test_imageinfo_file,
-        'image_dir': opt.test_image_dir,        
-        'num_workers': opt.num_workers,        
         'train': False
     }
                 
     train_loader = get_data_loader(train_opt)
     val_loader = get_data_loader(val_opt)
-    test_loader = get_data_loader(test_opt)
     
     logger.info('Building model...')
     
     num_labels = train_loader.dataset.get_num_labels()
     
-    model = EncoderImageFull(num_labels)
+    model = EncoderImageFull(num_labels, finetune=opt.finetune, cnn_type=opt.cnn_type)
     criterion = nn.MultiLabelSoftMarginLoss()
     
     optimizer = optim.Adam(model.parameters(), lr=opt.learning_rate)
@@ -215,6 +204,7 @@ if __name__ == '__main__':
 
         # validate at every val_step epoch
         if epoch % opt.val_step == 0:
+            logger.info("Start evaluating...")
             loss = validate(opt, model, criterion, val_loader)
 
             if loss < best_loss:

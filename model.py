@@ -32,8 +32,7 @@ class EncoderImageFull(nn.Module):
             self.fc = nn.Linear(self.cnn.module.fc.in_features, embed_size)
             self.cnn.module.fc = nn.Sequential()
 
-        self.Eiters = 0         
-        self.init_weights()
+        #self.init_weights()
 
     def get_cnn(self, arch, pretrained):
         """Load a pretrained CNN and parallelize over GPUs
@@ -69,7 +68,7 @@ class EncoderImageFull(nn.Module):
 
     def forward(self, images):
         """Extract image feature vectors."""
-        self.Eiters += 1
+        
         features = self.cnn(images)
         features = self.fc(features)
 
