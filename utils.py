@@ -1,5 +1,86 @@
+import numpy as np
 
-
+class AverageScore(object):
+    """Compute precision/recall/f-score and mAP"""
+    
+    def __init__(self):
+        self.reset()
+    
+    def reset(self):
+        self.threshold_values = list(np.arange(0.1, 1, 0.1))
+        self.num_correct = [0]*len(self.threshold_values)
+        self.num_pred = [0]*len(self.threshold_values)
+        self.num_gold = 0
+        self.num_samples = 0
+        self.sum_ap = 0
+    
+    def update(self, preds, labels):
+        batch_size = preds.shape[0]
+        
+        self.num_samples += batch_size
+        ap = 0
+        for i in range(batch_size):
+            pred = preds[i]
+            label = labels[i]
+            
+            correct_pred = pred[label>0]
+            self.num_gold = self.num_gold + len(np.nonzero(label)[0])
+            
+            for j,t in enumerate(self.threshold_values):
+                self.num_pred[j] = self.num_pred[j] + len(pred[pred>t])
+                self.num_correct[j] = self.num_correct[j] + len(correct_pred[correct_pred>t])
+            
+            ap += self.average_precision(pred, label)
+            
+        self.sum_ap += ap
+        
+    def average_precision(self, pred, label):
+        """calculate average precision
+        for each relevant label, average precision computes the proportion 
+        of relevant labels that are ranked before it, and finally averages 
+        over all relevant labels [1]
+        
+        References:
+        ----------
+        .. [1] Sorower, Mohammad S. "A literature survey on algorithms for 
+        multi-label learning." Oregon State University, Corvallis (2010).
+        
+        Notes:
+        -----
+        .. The average_precision_score method in the sklearn.metrics package
+        would produce a different numbers???
+        
+        average_precision_score(pred, label, average='samples')
+        
+        """
+        
+        ap = 0
+        # sort the prediction scores in the descending order
+        sorted_pred_idx = np.argsort(pred)[::-1]
+        ranks = np.empty(len(pred), dtype=int)
+        ranks[sorted_pred_idx] = np.arange(len(pred))+1
+        
+        # only care of those ranks of relevant labels
+        ranks = ranks[label > 0]
+        
+        for ii, rank in enumerate(sorted(ranks)):
+            num_relevant_labels = ii + 1 # including the current relevant label
+            ap = ap + float(ii)/rank
+        
+        return ap/len(ranks)
+                
+    def __str__(self):
+        """String representation for logging
+        """    
+        out = ''
+        for i,t in enumerate(self.threshold_values):
+            p = float(self.num_correct[i])/self.num_pred[i] 
+            r = float(self.num_correct[i])/self.num_gold
+            f = 2*p*r/(p+r)
+            out += '===> Precision = %.4f, Recall = %.4f, F-score = %.4f\n (@ threshold = %.1f)' % (p, r, f, t)
+        out += '===> Mean AP = %.4f' % (self.sum_ap/self.num_samples)
+        return out
+    
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -12,7 +93,7 @@ class AverageMeter(object):
         self.sum = 0
         self.count = 0
 
-    def update(self, val, n=0):
+    def update(self, val, n=1):
         self.val = val
         self.sum += val * n
         self.count += n

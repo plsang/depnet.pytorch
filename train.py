@@ -17,7 +17,7 @@ from model import EncoderImageFull
 from dataloader import get_data_loader
 
 logger = logging.getLogger(__name__)
-from utils import AverageMeter
+from utils import AverageMeter, AverageScore
 
 def train(opt, model, criterion, optimizer, train_loader, epoch):
     # average meters to record the training statistics
@@ -48,24 +48,27 @@ def train(opt, model, criterion, optimizer, train_loader, epoch):
         optimizer.step()
         # measure elapsed time
         batch_time.update(time.time() - end)
-        end = time.time()
         
         # Print log info
         if i % opt.log_step == 0:
             logger.info(
-                'Epoch: [{0}][{1}/{2}]\t'
-                '{3}\t'
+                'Epoch [{0}][{1}/{2}]\t'
+                'Loss {3:0.4f}\t'
+                'Lr {4}\t'
                 'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                 'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                 .format(
                     epoch, i, len(train_loader), loss.data[0], 
+                    opt.learning_rate,
                     batch_time=batch_time,
                     data_time=data_time))
-
+        
+        end = time.time()
 
 def validate(opt, model, criterion, val_loader):
     # compute the encoding for all the validation images and captions
     val_loss = AverageMeter()
+    val_score = AverageScore()
     
     model.eval()
     for i, val_data in enumerate(val_loader):
@@ -81,31 +84,26 @@ def validate(opt, model, criterion, val_loader):
         loss = criterion(preds, labels)
         
         val_loss.update(loss.data[0])
+        val_score.update(preds.data.cpu().numpy(), val_data[1].numpy())
         
         if i % opt.log_step == 0:
             logger.info(
                 'Epoch: [{0}][{1}/{2}]\t'
-                '{3}\t'.format(
+                '{3:0.4f}\t'.format(
                     0, i, len(val_loader), loss.data[0]))
     
-    return val_loss.avg.cpu()
+    logger.info('Val score: \n%s', val_score)
+    return val_loss.avg
 
 def save_checkpoint(state, filename):
     torch.save(state, filename)
-
-def load_checkpoint(filename='model_best.pth.tar', prefix=''):
-    checkpoint_file = os.path.join(prefix, filename)
-    logger.info('Loading checkpoint: %s', checkpoint_file)
-    if os.path.isfile(checkpoint_file):
-        return torch.load(checkpoint_file)
-    return None
         
 def adjust_learning_rate(opt, optimizer, epoch):
     """Sets the learning rate to the initial LR
        decayed by 10 every 30 epochs"""
-    lr = opt.learning_rate * (0.1 ** (epoch // opt.learning_rate))
+    opt.learning_rate = opt.learning_rate * (0.1 ** (epoch // opt.lr_update))
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        param_group['lr'] = opt.learning_rate
 
         
 if __name__ == '__main__':
@@ -127,9 +125,11 @@ if __name__ == '__main__':
     
     # Optimization: General
     parser.add_argument('--max_patience', type=int, default=50, help='max number of epoch to run since the minima is detected -- early stopping')
-    parser.add_argument('--batch_size', type=int, default=128, help='Video batch size (there will be x seq_per_img sentences)')
+    parser.add_argument('--batch_size', type=int, default=128, help='batch size (there will be x seq_per_img sentences)')
     parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--val_step', type=int, default=10, help='learning rate')
+    parser.add_argument('--lr_update', default=10, type=int,
+                        help='Number of epochs to update the learning rate.')
+    parser.add_argument('--val_step', type=int, default=1, help='val step, default=1 (every epoch)')
     
     # Model settings
     parser.add_argument('--num_workers', type=int, default=4, help='number of workers')
@@ -140,13 +140,10 @@ if __name__ == '__main__':
     parser.add_argument('--save_checkpoint_from', type=int, default=20, help='Start saving checkpoint from this epoch')
     parser.add_argument('--save_checkpoint_every', type=int, default=1, help='how often to save a model checkpoint in epochs?')
     
-    parser.add_argument('--checkpoint_path', type=str, default='output/model', help='folder to save checkpoints into (empty = this folder)')
     parser.add_argument('--log_step', type=int, default=20, help='How often do we snapshot losses, for inclusion in the progress dump? (0 = disable)')
     parser.add_argument('--loglevel', type=str, default='DEBUG', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     
     ## misc
-    parser.add_argument('--backend', type=str, default='cudnn', help='nn|cudnn')
-    parser.add_argument('--id', type=str, default=None, help='an id identifying this run/job. used in cross-val and appended when writing progress files')
     parser.add_argument('--seed', type=int, default=123, help='random number generator seed to use')
     
     parser.add_argument('--test_checkpoint',  type=str, default='', help='path to the checkpoint needed to be tested')
@@ -216,7 +213,7 @@ if __name__ == '__main__':
         # train for one epoch
         train(opt, model, criterion, optimizer, train_loader, epoch)
 
-        # validate at every val_step
+        # validate at every val_step epoch
         if epoch % opt.val_step == 0:
             loss = validate(opt, model, criterion, val_loader)
 
@@ -239,4 +236,4 @@ if __name__ == '__main__':
         
         if epoch - best_epoch > opt.max_patience:
             logger.info('Terminated by early stopping!')
-            break;    
+            break;
