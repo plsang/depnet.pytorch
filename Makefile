@@ -10,6 +10,7 @@ BATCH_SIZE?=128
 LEARNING_RATE?=0.0001
 CNN_TYPE?=vgg19
 FINETUNE?=False
+NUM_WORKERS?=4
 
 EXP_NAME?=$(CNN_TYPE)_$(FINETUNE)
 
@@ -28,4 +29,5 @@ $(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.pth: \
 			     --cnn_type $(CNN_TYPE) --finetune $(FINETUNE) \
 			     --train_image_dir $(MSCOCO_IMAGE_DIR)/train2014 \
 			     --val_image_dir $(MSCOCO_IMAGE_DIR)/train2014 \
+			     --num_workers $(NUM_WORKERS) \
 			     2>&1 | tee $(basename $@).log

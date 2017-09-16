@@ -32,7 +32,6 @@ class EncoderImageFull(nn.Module):
             self.fc = nn.Linear(self.cnn.module.fc.in_features, embed_size)
             self.cnn.module.fc = nn.Sequential()
 
-        #self.init_weights()
 
     def get_cnn(self, arch, pretrained):
         """Load a pretrained CNN and parallelize over GPUs
@@ -58,14 +57,6 @@ class EncoderImageFull(nn.Module):
             params += list(self.cnn.parameters())
         return params
     
-    def init_weights(self):
-        """Xavier initialization for the fully connected layer
-        """
-        r = np.sqrt(6.) / np.sqrt(self.fc.in_features +
-                                  self.fc.out_features)
-        self.fc.weight.data.uniform_(-r, r)
-        self.fc.bias.data.fill_(0)
-
     def forward(self, images):
         """Extract image feature vectors."""
         
@@ -73,5 +64,4 @@ class EncoderImageFull(nn.Module):
         features = self.fc(features)
 
         return features
-
 

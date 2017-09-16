@@ -39,7 +39,7 @@ def average_precision(pred, label):
         
         for ii, rank in enumerate(sorted(ranks)):
             num_relevant_labels = ii + 1 # including the current relevant label
-            ap = ap + float(ii)/rank
+            ap = ap + float(num_relevant_labels)/rank
         
         return ap/len(ranks)
     

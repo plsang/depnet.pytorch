@@ -1,6 +1,7 @@
 import argparse
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.optim as optim
 import torch.backends.cudnn as cudnn
@@ -53,13 +54,11 @@ def train(opt, model, criterion, optimizer, train_loader, epoch):
         if i % opt.log_step == 0:
             logger.info(
                 'Epoch [{0}][{1}/{2}]\t'
-                'Loss {3:0.4f}\t'
-                'Lr {4}\t'
+                'Loss {3:0.5f}\t'
                 'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                 'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                 .format(
                     epoch, i, len(train_loader), loss.data[0], 
-                    opt.learning_rate,
                     batch_time=batch_time,
                     data_time=data_time))
         
@@ -84,12 +83,14 @@ def validate(opt, model, criterion, val_loader):
         loss = criterion(preds, labels)
         
         val_loss.update(loss.data[0])
+        # convert to probabiblity output to cal precision/recall
+        preds = F.sigmoid(preds)
         val_score.update(preds.data.cpu().numpy(), val_data[1].numpy())
         
         if i % opt.log_step == 0:
             logger.info(
-                'Epoch: [{0}][{1}/{2}]\t'
-                '{3:0.4f}\t'.format(
+                'Epoch [{0}][{1}/{2}]\t'
+                'Loss {3:0.5f}\t'.format(
                     0, i, len(val_loader), loss.data[0]))
     
     logger.info('Val score: \n%s', val_score)
@@ -101,9 +102,10 @@ def save_checkpoint(state, filename):
 def adjust_learning_rate(opt, optimizer, epoch):
     """Sets the learning rate to the initial LR
        decayed by 10 every 30 epochs"""
-    opt.learning_rate = opt.learning_rate * (0.1 ** (epoch // opt.lr_update))
+    lr = opt.learning_rate * (0.1 ** (epoch // opt.lr_update))
     for param_group in optimizer.param_groups:
-        param_group['lr'] = opt.learning_rate
+        param_group['lr'] = lr
+    return lr
 
         
 if __name__ == '__main__':
@@ -114,13 +116,13 @@ if __name__ == '__main__':
     parser.add_argument('val_label', type=str, help='path to the h5file containing the labels')
     parser.add_argument('train_imageinfo', type=str, help='imageinfo contains image path')
     parser.add_argument('val_imageinfo', type=str, help='imageinfo contains image path')
-    parser.add_argument('output', type=str, help='output model file')
+    parser.add_argument('output_file', type=str, help='output model file')
     
     parser.add_argument('--train_image_dir', type=str, help='image dir')
     parser.add_argument('--val_image_dir', type=str, help='image dir')
     
     # Optimization: General
-    parser.add_argument('--max_patience', type=int, default=50, help='max number of epoch to run since the minima is detected -- early stopping')
+    parser.add_argument('--max_patience', type=int, default=5, help='max number of epoch to run since the minima is detected -- early stopping')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size (there will be x seq_per_img sentences)')
     parser.add_argument('--learning_rate', type=float, default=1e-4, help='learning rate')
     parser.add_argument('--lr_update', default=10, type=int,
@@ -133,13 +135,11 @@ if __name__ == '__main__':
     parser.add_argument('--cnn_type', default='vgg19', choices=['vgg19', 'resnet152'],
                         help="""The CNN used for image encoder
                         (e.g. vgg19, resnet152)""")
-    parser.add_argument('--num_workers', type=int, default=4, help='number of workers')
+    parser.add_argument('--num_workers', type=int, default=0, help='number of workers')
     parser.add_argument('--num_epochs', type=int, default=30, help='max number of epochs to run for (-1 = run forever)')
     parser.add_argument('--grad_clip', type=float, default=0.1, help='clip gradients at this value (note should be lower than usual 5 because we normalize grads by both batch and seq_length)')
     
     # Evaluation/Checkpointing
-    parser.add_argument('--save_checkpoint_from', type=int, default=20, help='Start saving checkpoint from this epoch')
-    parser.add_argument('--save_checkpoint_every', type=int, default=1, help='how often to save a model checkpoint in epochs?')
     
     parser.add_argument('--log_step', type=int, default=20, help='How often do we snapshot losses, for inclusion in the progress dump? (0 = disable)')
     parser.add_argument('--loglevel', type=str, default='DEBUG', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
@@ -192,12 +192,13 @@ if __name__ == '__main__':
         model.cuda()
         criterion.cuda()
     
-    logger.info("=> start/continue training...")
+    logger.info("Start/continue training...")
     best_loss = sys.maxint
     best_epoch = 0
     
     for epoch in range(opt.num_epochs):
-        adjust_learning_rate(opt, optimizer, epoch)
+        learning_rate = adjust_learning_rate(opt, optimizer, epoch)
+        logger.info('===> Learning rate: %f: ', learning_rate)
 
         # train for one epoch
         train(opt, model, criterion, optimizer, train_loader, epoch)
