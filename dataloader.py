@@ -36,7 +36,6 @@ def get_image_transform(train=True, scale_size=256, crop_size=224):
 class DataLoader(data.Dataset):
     """
     Load precomputed captions and image features
-    Possible options: f8k, f30k, coco, 10crop
     """
 
     def __init__(self, opt):

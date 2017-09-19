@@ -18,11 +18,12 @@ MYCONCEPTS=myconceptsv3 mydepsv4 mydepsprepv4 mypasv4 mypasprepv4
 EXCONCEPTS=exconceptsv3 exdepsv4 exdepsprepv4 expasv4 expasprepv4 
 SPLITS=dev1 dev2
 TRAIN_SPLIT=$(firstword $(SPLITS))
+TEST_SPLIT=val
 
 train: $(patsubst %,$(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.pth,$(MYCONCEPTS) $(EXCONCEPTS))
 $(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.pth: \
-       $(foreach s,$(SPLITS), $(MSCOCO_DATA)/mscoco2014_$(s)_captions_%.h5) \
-       $(patsubst %,$(MSCOCO_DATA)/mscoco2014_%_imageinfo.json, $(SPLITS))
+       	$(foreach s,$(SPLITS), $(MSCOCO_DATA)/mscoco2014_$(s)_captions_%.h5) \
+       	$(patsubst %,$(MSCOCO_DATA)/mscoco2014_%_imageinfo.json, $(SPLITS))
 	mkdir -p $(MODEL_DIR)/$(EXP_NAME)
 	CUDA_VISIBLE_DEVICES=$(GID) python train.py $^ $@ \
 			     --batch_size $(BATCH_SIZE) --learning_rate $(LEARNING_RATE) \
@@ -31,3 +32,13 @@ $(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.pth: \
 			     --val_image_dir $(MSCOCO_IMAGE_DIR)/train2014 \
 			     --num_workers $(NUM_WORKERS) \
 			     2>&1 | tee $(basename $@).log
+
+test: $(patsubst %,$(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.json,$(MYCONCEPTS) $(EXCONCEPTS))
+$(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.json: \
+	$(MSCOCO_DATA)/mscoco2014_$(TEST_SPLIT)_captions_%.h5 \
+	$(MSCOCO_DATA)/mscoco2014_$(TEST_SPLIT)_imageinfo.json \
+	$(MODEL_DIR)/$(EXP_NAME)/mscoco2014_$(TRAIN_SPLIT)_captions_%.pth
+	CUDA_VISIBLE_DEVICES=$(GID) python test.py $^ $@ \
+			     --batch_size $(BATCH_SIZE) \
+			     --test_image_dir $(MSCOCO_IMAGE_DIR)/val2014 \
+			     --num_workers $(NUM_WORKERS) 
