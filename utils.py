@@ -40,8 +40,8 @@ def average_precision(pred, label):
         for ii, rank in enumerate(sorted(ranks)):
             num_relevant_labels = ii + 1 # including the current relevant label
             ap = ap + float(num_relevant_labels)/rank
-        
-        return ap/len(ranks)
+       
+        return 0 if len(ranks) == 0 else ap/len(ranks)
     
 class AverageScore(object):
     """Compute precision/recall/f-score and mAP"""
@@ -83,9 +83,9 @@ class AverageScore(object):
         """    
         out = ''
         for i,t in enumerate(self.threshold_values):
-            p = float(self.num_correct[i])/self.num_pred[i] 
-            r = float(self.num_correct[i])/self.num_gold
-            f = 2*p*r/(p+r)
+            p = 0 if self.num_pred[i] == 0 else float(self.num_correct[i])/self.num_pred[i] 
+            r = 0 if self.num_gold == 0 else float(self.num_correct[i])/self.num_gold
+            f = 0 if p+r==0 else 2*p*r/(p+r)
             out += '===> Precision = %.4f, Recall = %.4f, F-score = %.4f (@ threshold = %.1f)\n' % (p, r, f, t)
         out += '===> Mean AP = %.4f' % (self.sum_ap/self.num_samples)
         return out
@@ -106,7 +106,7 @@ class AverageMeter(object):
         self.val = val
         self.sum += val * n
         self.count += n
-        self.avg = self.sum / (.0001 + self.count)
+        self.avg = self.sum / self.count
 
     def __str__(self):
         """String representation for logging

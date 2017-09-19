@@ -54,7 +54,7 @@ def train(opt, model, criterion, optimizer, train_loader, epoch):
         if i % opt.log_step == 0:
             logger.info(
                 'Epoch [{0}][{1}/{2}]\t'
-                'Loss {3:0.5f}\t'
+                'Loss {3:0.7f}\t'
                 'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                 'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                 .format(
@@ -90,7 +90,7 @@ def validate(opt, model, criterion, val_loader):
         if i % opt.log_step == 0:
             logger.info(
                 'Epoch [{0}][{1}/{2}]\t'
-                'Loss {3:0.5f}\t'.format(
+                'Loss {3:0.7f}\t'.format(
                     0, i, len(val_loader), loss.data[0]))
     
     logger.info('Val score: \n%s', val_score)
@@ -137,7 +137,6 @@ if __name__ == '__main__':
                         (e.g. vgg19, resnet152)""")
     parser.add_argument('--num_workers', type=int, default=0, help='number of workers')
     parser.add_argument('--num_epochs', type=int, default=30, help='max number of epochs to run for (-1 = run forever)')
-    parser.add_argument('--grad_clip', type=float, default=0.1, help='clip gradients at this value (note should be lower than usual 5 because we normalize grads by both batch and seq_length)')
     
     # Evaluation/Checkpointing
     
@@ -209,7 +208,7 @@ if __name__ == '__main__':
             loss = validate(opt, model, criterion, val_loader)
 
             if loss < best_loss:
-                logger.info('Found new best score: %.4f, previous score: %.4f', loss, best_loss)
+                logger.info('Found new best score: %.7f, previous score: %.7f', loss, best_loss)
                 best_loss = loss
                 best_epoch = epoch
                 
@@ -223,7 +222,7 @@ if __name__ == '__main__':
                     }, opt.output_file)
                 
             else:
-                logger.info('Current score: %.4f, best score is %.4f @ epoch %d', loss, best_loss, best_epoch)
+                logger.info('Current score: %.7f, best score is %.7f @ epoch %d', loss, best_loss, best_epoch)
         
         if epoch - best_epoch > opt.max_patience:
             logger.info('Terminated by early stopping!')
