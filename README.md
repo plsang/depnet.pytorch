@@ -1,29 +1,23 @@
-# README #
+# Dependency Prediction Networks #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This project is for dependency prediction from images.
 
-### What is this repository for? ###
+## Dependencies ##
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+* Python 2.7
+* Pytorch 0.2 
+* [clcv project](https://github.com/mynlp/clcv)
 
-### How do I get set up? ###
+## Getting started ##
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+* This project works with data format produced by the clcv project. In order to start, please set the `CLCV_HOME` evironment variable point to the CLCV project:
+`export CLCV_HOME=/path/to/the/clcv/project`
+* Now, everything is ready.
 
-### Contribution guidelines ###
+## Training ##
 
-* Writing tests
-* Code review
-* Other guidelines
+* make train
 
-### Who do I talk to? ###
+## Testing ##
 
-* Repo owner or admin
-* Other community or team contact
+* make test
