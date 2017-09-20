@@ -104,4 +104,18 @@ This project is for dependency prediction from images.
 * Train, val, test set are `dev1`, `dev2`, `val` irrespectively
 * Performance of the Vgg19 and ResNet152 models (with and without using finetuning) are reported below.
 
+|      Run            |myconceptsv3|mydepsv4|mydepsprepv4|mypasv4|mypasprepv4|exconceptsv3|exdepsv4|exdepsprepv4|expasv4|expasprepv4|
+|---------------------|:----------:|:------:|:----------:|:-----:|:---------:|:----------:|:------:|:----------:|:-----:|:---------:|
+|Vgg19                |      0.4496|  0.1994|      0.1980| 0.2121|     0.2135|      0.5270|  0.2414|      0.2388| 0.2692|     0.2714|
+|ResNet152            |      0.4525|  0.1957|      0.1951| 0.2079|     0.2091|      0.5276|  0.2374|      0.2350| 0.2649|     0.2674|
+|Vgg19 +Finetune     |      0.4925|  0.1841|      0.2020| 0.2183|     0.2176|      0.5601|  0.2168|      0.2532| 0.2864|     0.2858|
+|ResNet152 +Finetune|      0.5188|  0.2343|      0.2320| 0.2499|     0.2511|      0.5897|  0.2856|      0.2806| 0.3177|     0.3186|
+
+### Some observations ###
+* Finetuning is applied at the begining for the whole network. A better strategy would be training the last layer first and then start the finetuning. 
+* Without finetuning, performance of Vgg19 and ResNet152 are more or less similar.
+* Finetuning can significantly boost the performance, and finetuning on ResNet brings more improvement. 
+* Finetuning requires more memory, and the convergence rate is rather slow for the some initial epochs. You may need to increase the `max_patience` hyperparamter to prevent the training from stopping too early, and increase the `num_epochs` to get a better result.
+  
+## TODO ##
 
