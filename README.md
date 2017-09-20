@@ -109,7 +109,7 @@ Example of using make rules for testing
 ## Experiments ##
 ### Experimental setting ###
 * Dataset MSCOCO 2014
-* Train, val, test sets are `dev1`, `dev2`, `val` irrespectively
+* Train, val, test sets are `dev1`, `dev2`, `val` respectively
 * Evaluation metric: mean average precision (mAP)
 * Hyperameters used to train DepNet models:
 
@@ -117,8 +117,7 @@ Example of using make rules for testing
 | :-------: | :-------: |
 | `batch_size`   | 128 (64 if finetuning is used) |
 | `learning_rate` | 1e-4 |
-| `lr_update`     | 10  |
-| `num_workers`   | 4    |
+| `lr_update`     | 10   |
 | `num_epochs`    | 30   |
 | `max_patience`  | 5    |
 
