@@ -110,6 +110,7 @@ Example of using make rules for testing
 ### Experimental setting ###
 * Dataset MSCOCO 2014
 * Train, val, test sets are `dev1`, `dev2`, `val` irrespectively
+* Evaluation metric: mean average precision (mAP)
 * Hyperameters used to train DepNet models:
 
 | Hyperparameter       | Value |
@@ -123,8 +124,7 @@ Example of using make rules for testing
 
 
 ### Results ###
-* Metric: mean average precision (mAP)
-* Results using `my*` concepts
+Results using `my*` concepts on the test set (in terms of mAP)
 
 |      Run            |myconceptsv3|mydepsv4|mydepsprepv4|mypasv4|mypasprepv4|
 |---------------------|:----------:|:------:|:----------:|:-----:|:---------:|
@@ -133,7 +133,7 @@ Example of using make rules for testing
 |Vgg19 + Finetune     |      0.4925|  0.1841|      0.2020| 0.2183|     0.2176|
 |ResNet152 + Finetune |      0.5188|  0.2343|      0.2320| 0.2499|     0.2511|
 
-* Results using `ex*` concepts
+Results using `ex*` concepts on the test set (in terms of mAP)
 
 |      Run            |exconceptsv3|exdepsv4|exdepsprepv4|expasv4|expasprepv4|
 |---------------------|:----------:|:------:|:----------:|:-----:|:---------:|
@@ -144,7 +144,7 @@ Example of using make rules for testing
 
 
 ### Some observations ###
-* Most models are not terminated by the early stopping condition, but the maximum number of training epochs. Better checkpoints might be obtained by increasing the `num_epochs` hyperparameter; or it may necessary to increase the `learning_rate` and/or `lr_update` value so that the model can converge faster.
+* Most models are not terminated by the early stopping condition, but the maximum number of training epochs. Better checkpoints might be obtained by increasing the `num_epochs` hyperparameter; or it may be necessary to increase the `learning_rate` and/or `lr_update` value so that the model can converge faster.
 * Finetuning is applied at the begining for the whole network. A better strategy would be training the last layer first and then start the finetuning. 
 * Without finetuning, performance of Vgg19 and ResNet152 are more or less similar.
 * Finetuning can significantly boost the performance, and finetuning on ResNet brings more improvements. 
