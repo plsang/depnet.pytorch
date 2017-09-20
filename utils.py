@@ -1,5 +1,98 @@
 import numpy as np
 import argparse
+import torch
+import torch.nn as nn
+from torch.autograd import Variable
+import torch.nn.functional as F
+import time
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+def train(opt, model, criterion, optimizer, train_loader, epoch):
+    # average meters to record the training statistics
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+
+    # switch to train mode
+    model.train()
+
+    end = time.time()
+    for i, train_data in enumerate(train_loader):
+        # measure data loading time
+        data_time.update(time.time() - end)
+
+        images = Variable(train_data[0], volatile=False)
+        labels = Variable(train_data[1], volatile=False)
+
+        if torch.cuda.is_available():
+            images = images.cuda()
+            labels = labels.cuda()
+
+        preds = model(images)
+        #import pdb; pdb.set_trace()
+        loss = criterion(preds, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+
+        # Print log info
+        if i % opt.log_step == 0:
+            logger.info(
+                'Epoch [{0}][{1}/{2}]\t'
+                'Loss {3:0.7f}\t'
+                'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                .format(
+                    epoch, i, len(train_loader), loss.data[0],
+                    batch_time=batch_time,
+                    data_time=data_time))
+
+        end = time.time()
+
+
+def test(opt, model, criterion, val_loader):
+    val_loss = AverageMeter()
+    val_score = AverageScore()
+
+    model.eval()
+    for i, val_data in enumerate(val_loader):
+        # Update the model
+        images = Variable(val_data[0], volatile=True)
+        labels = Variable(val_data[1], volatile=True)
+
+        if torch.cuda.is_available():
+            images = images.cuda()
+            labels = labels.cuda()
+
+        preds = model(images)
+        loss = criterion(preds, labels)
+
+        val_loss.update(loss.data[0])
+        # convert to probabiblity output to cal precision/recall
+        preds = F.sigmoid(preds)
+        val_score.update(preds.data.cpu().numpy(), val_data[1].numpy())
+
+        if i % opt.log_step == 0:
+            logger.info(
+                'Epoch [{0}][{1}/{2}]\t'
+                'Loss {3:0.7f}\t'.format(
+                    0, i, len(val_loader), loss.data[0]))
+
+    return val_loss, val_score
+
+
+def adjust_learning_rate(opt, optimizer, epoch):
+    """Sets the learning rate to the initial LR
+       decayed by 10 every [lr_update] epochs"""
+    lr = opt.learning_rate * (0.1 ** (epoch // opt.lr_update))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
 
 
 def str2bool(v):
@@ -24,9 +117,7 @@ def average_precision(pred, label):
 
     Notes:
     -----
-    .. The average_precision_score method in the sklearn.metrics package
-    would produce a different numbers???
-
+    .. Check with the average_precision_score method in the sklearn.metrics package
     average_precision_score(pred, label, average='samples')
 
     """
@@ -80,6 +171,9 @@ class AverageScore(object):
             ap += average_precision(pred, label)
 
         self.sum_ap += ap
+
+    def map(self):
+        return 0 if self.num_samples == 0 else self.sum_ap / self.num_samples
 
     def __str__(self):
         """String representation for logging

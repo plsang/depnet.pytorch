@@ -3,21 +3,25 @@ import torch.nn as nn
 import torch.nn.init
 import torchvision.models as models
 from torch.autograd import Variable
-import numpy as np
+
+import logging
+logger = logging.getLogger(__name__)
 
 
-class EncoderImageFull(nn.Module):
+class DepNet(nn.Module):
 
-    def __init__(self, embed_size, finetune=False, cnn_type='vgg19'):
-        """Load pretrained VGG19 and replace top fc layer."""
-        super(EncoderImageFull, self).__init__()
-        self.embed_size = embed_size
+    def __init__(
+            self,
+            num_labels,
+            finetune=False,
+            cnn_type='vgg19',
+            pretrained=True):
+        """Load a pretrained model and replace top fc layer."""
+        super(DepNet, self).__init__()
 
-        # Load a pre-trained model
-        self.cnn = self.get_cnn(cnn_type, True)
-        
         self.finetune = finetune
-        
+        self.cnn = self.get_cnn(cnn_type, pretrained)
+
         # For efficient memory usage.
         for param in self.cnn.parameters():
             param.requires_grad = finetune
@@ -25,25 +29,21 @@ class EncoderImageFull(nn.Module):
         # Replace the last fully connected layer of CNN with a new one
         if cnn_type.startswith('vgg'):
             self.fc = nn.Linear(self.cnn.classifier._modules['6'].in_features,
-                                embed_size)
+                                num_labels)
             self.cnn.classifier = nn.Sequential(
                 *list(self.cnn.classifier.children())[:-1])
+
         elif cnn_type.startswith('resnet'):
-            self.fc = nn.Linear(self.cnn.module.fc.in_features, embed_size)
+            self.fc = nn.Linear(self.cnn.module.fc.in_features, num_labels)
             self.cnn.module.fc = nn.Sequential()
 
-
-    def get_cnn(self, arch, pretrained):
+    def get_cnn(self, cnn_type, pretrained):
         """Load a pretrained CNN and parallelize over GPUs
         """
-        if pretrained:
-            print("=> using pre-trained model '{}'".format(arch))
-            model = models.__dict__[arch](pretrained=True)
-        else:
-            print("=> creating model '{}'".format(arch))
-            model = models.__dict__[arch]()
+        logger.info("===> Loading pre-trained model '{}'".format(cnn_type))
+        model = models.__dict__[cnn_type](pretrained=pretrained)
 
-        if arch.startswith('alexnet') or arch.startswith('vgg'):
+        if cnn_type.startswith('alexnet') or cnn_type.startswith('vgg'):
             model.features = nn.DataParallel(model.features)
             model.cuda()
         else:
@@ -56,12 +56,11 @@ class EncoderImageFull(nn.Module):
         if self.finetune:
             params += list(self.cnn.parameters())
         return params
-    
+
     def forward(self, images):
         """Extract image feature vectors."""
-        
+
         features = self.cnn(images)
         features = self.fc(features)
 
         return features
-

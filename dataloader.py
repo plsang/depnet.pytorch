@@ -2,7 +2,6 @@ import os
 import sys
 import torch
 import torchvision.transforms as transforms
-from torch.autograd import Variable
 import torch.utils.data as data
 import numpy as np
 import h5py
@@ -39,7 +38,7 @@ def get_image_transform(train=True, scale_size=256, crop_size=224):
 
 class DataLoader(data.Dataset):
     """
-    Load precomputed captions and image features
+    Load raw images and multi-lables for each image
     """
 
     def __init__(self, opt):
@@ -83,7 +82,7 @@ class DataLoader(data.Dataset):
 
 
 def get_data_loader(opt):
-    """Returns torch.utils.data.DataLoader for custom coco dataset."""
+    """Returns torch.utils.data.DataLoader for custom dataset."""
 
     dataset = DataLoader(opt)
 
