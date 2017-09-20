@@ -68,7 +68,7 @@ Example of using make rules for training
 ```bash
     make train GID=0 BATCH_SIZE=128 LEARNING_RATE=0.0001 CNN_TYPE=vgg19 FINETUNE=False NUM_WORKERS=4
 ```
-Training on multiple GPUs are also supported. For example, if you want to train the same model on the first 4 GPUs (GID=0,1,2,3), you can you make command as follows.
+Training on multiple GPUs are also supported. For example, if you want to train the same model on the first 4 GPUs (GID=0,1,2,3), you can use the make command as follows.
 ```bash
     make train GID=0,1,2,3 BATCH_SIZE=128 LEARNING_RATE=0.0001 CNN_TYPE=vgg19 FINETUNE=False NUM_WORKERS=4
 ```
